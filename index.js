@@ -25,11 +25,16 @@ let scholar = (function () {
           let results = $('.gs_r')
           let resultCount = 0
           let nextUrl = ''
+          let prevUrl = ''
           if ($('.gs_ico_nav_next').parent().attr('href')) {
             nextUrl = $('.gs_ico_nav_next').parent().attr('href')
           }
+          if ($('.gs_ico_nav_previous').parent().attr('href')) {
+            prevUrl = $('.gs_ico_nav_previous').parent().attr('href')
+          }
 
-          let processedResults = results.map((i, r) => {
+          let processedResults = []
+          results.each((i, r) => {
             let title = $(r).find('h3').text()
             let url = $(r).find('h3 a').attr('href')
             let authorNamesHTMLString = $(r).find('.gs_a').html()
@@ -43,7 +48,7 @@ let scholar = (function () {
             let relatedUrl = ''
 
             let resultsCountString = $('#gs_ab_md').text()
-            resultCount = RESULT_COUNT_RE.exec(resultsCountString)
+            resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1])
 
             if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
               citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
@@ -102,7 +107,7 @@ let scholar = (function () {
               })
             }
 
-            return {
+            processedResults.push({
               title: title,
               url: url,
               authors: authors,
@@ -110,12 +115,13 @@ let scholar = (function () {
               citedCount: citedCount,
               citedUrl: citedUrl,
               relatedUrl: relatedUrl
-            }
+            })
           })
           resolve({
             results: processedResults,
             count: resultCount,
-            nextUrl: nextUrl
+            nextUrl: nextUrl,
+            prevUrl: prevUrl
           })
         }
       })
