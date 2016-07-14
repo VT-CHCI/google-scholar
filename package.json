@@ -1,6 +1,6 @@
 {
   "name": "google-scholar",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "nodejs module for searching google scholar",
   "main": "index.js",
   "scripts": {
