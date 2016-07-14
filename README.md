@@ -34,4 +34,6 @@ the results obj has 4 fields:
         - `relatedUrl`
 * `nextUrl`: the URL for the next set of results from google scholar
 * `prevUrl`: the URL for the previous set of results from google scholar
-* **actually paging next/prev is not yet supported**
+* `next`: function that returns a promise which will resolve to a `resultsObj` containing the next results
+* `previous`: function that returns a promise which will resolve to a `resultsObj` containing the previous results
+* <del>actually paging next/prev is not yet supported</del> - added in v1.2.0
