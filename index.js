@@ -49,7 +49,9 @@ let scholar = (function () {
           let relatedUrl = ''
 
           let resultsCountString = $('#gs_ab_md').text()
-          resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1].replace(/,/g, ''))
+          if (resultsCountString) {
+            resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1].replace(/,/g, ''))
+          }
 
           if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
             citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)

@@ -4,21 +4,25 @@
   "description": "nodejs module for searching google scholar",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/mocha --reporter spec"
   },
-  "repository": { 
-    "type" : "git",
-    "url" : "https://github.com/VT-CHCI/google-scholar.git"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VT-CHCI/google-scholar.git"
   },
-  "author": { 
-    "name" : "Michael Stewart",
-    "email" : "tgm@vt.edu",
-    "url" : "http://hcientist.com/"
+  "author": {
+    "name": "Michael Stewart",
+    "email": "tgm@vt.edu",
+    "url": "http://hcientist.com/"
   },
   "license": "ISC",
   "dependencies": {
     "cheerio": "^0.20.0",
     "request": "^2.73.0",
     "striptags": "^2.1.1"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^2.5.3"
   }
 }
