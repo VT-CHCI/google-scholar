@@ -6,13 +6,13 @@ let scholar = (function () {
   let striptags = require('striptags')
 
   const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?q='
-  const GOOGLE_SCHOLARURL_PREFIX = 'https://scholar.google.com'
+  const GOOGLE_SCHOLAR_URL_PREFIX = 'https://scholar.google.com'
 
   const ELLIPSIS_HTML_ENTITY = '&#x2026;'
   const ET_AL_NAME = 'et al.'
   const CITATION_COUNT_PREFIX = 'Cited by '
   const RELATED_ARTICLES_PREFIX = 'Related articles'
-  const RESULT_COUNT_RE = /.+ (\d+) results/
+  const RESULT_COUNT_RE = /.+ ((\d+|\d{1,3}(,\d{3})*)(\.\d+)?) results/
 
   function scholarResultsCallback (resolve, reject) {
     return function (error, response, html) {
@@ -22,33 +22,34 @@ let scholar = (function () {
       if (!error && response.statusCode === 200) {
         let $ = cheerio.load(html)
 
-        let results = $('.gs_r')
+        let results = $('.gs_ri')
         let resultCount = 0
         let nextUrl = ''
         let prevUrl = ''
         if ($('.gs_ico_nav_next').parent().attr('href')) {
-          nextUrl = $('.gs_ico_nav_next').parent().attr('href')
+          nextUrl = GOOGLE_SCHOLAR_URL_PREFIX + $('.gs_ico_nav_next').parent().attr('href')
         }
         if ($('.gs_ico_nav_previous').parent().attr('href')) {
-          prevUrl = $('.gs_ico_nav_previous').parent().attr('href')
+          prevUrl = GOOGLE_SCHOLAR_URL_PREFIX + $('.gs_ico_nav_previous').parent().attr('href')
         }
 
         let processedResults = []
         results.each((i, r) => {
-          let title = $(r).find('h3').text()
+          $(r).find('h3 span').remove()
+          let title = $(r).find('h3').text().trim()
           let url = $(r).find('h3 a').attr('href')
           let authorNamesHTMLString = $(r).find('.gs_a').html()
           let etAl = false
           let etAlBegin = false
           let authors = []
-          let description = striptags($(r).find('.gs_rs').html(), ['b'])
+          let description = $(r).find('.gs_rs').text()
           let footerLinks = $(r).find('.gs_ri .gs_fl a')
           let citedCount = 0
           let citedUrl = ''
           let relatedUrl = ''
 
           let resultsCountString = $('#gs_ab_md').text()
-          resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1])
+          resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1].replace(/,/g, ''))
 
           if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
             citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
@@ -56,7 +57,7 @@ let scholar = (function () {
           if ($(footerLinks[0]).attr &&
             $(footerLinks[0]).attr('href') &&
             $(footerLinks[0]).attr('href').length > 0) {
-            citedUrl = $(footerLinks[0]).attr('href')
+            citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[0]).attr('href')
           }
           if (footerLinks &&
             footerLinks.length &&
@@ -71,7 +72,7 @@ let scholar = (function () {
               $(footerLinks[1]).attr &&
               $(footerLinks[1]).attr('href') &&
               $(footerLinks[1]).attr('href').length > 0) {
-              relatedUrl = $(footerLinks[1]).attr('href')
+              relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[1]).attr('href')
             }
           }
           if (authorNamesHTMLString) {
@@ -101,7 +102,7 @@ let scholar = (function () {
                 authorObj.name = striptags(name)
               } else {
                 authorObj.name = tmp('a').text()
-                authorObj.url = tmp('a').attr('href')
+                authorObj.url = GOOGLE_SCHOLAR_URL_PREFIX + tmp('a').attr('href')
               }
               return authorObj
             })
@@ -125,13 +126,13 @@ let scholar = (function () {
           prevUrl: prevUrl,
           next: function () {
             let p = new Promise(function (resolve, reject) {
-              request(GOOGLE_SCHOLARURL_PREFIX + nextUrl, scholarResultsCallback(resolve, reject))
+              request(nextUrl, scholarResultsCallback(resolve, reject))
             })
             return p
           },
           previous: function () {
             let p = new Promise(function (resolve, reject) {
-              request(GOOGLE_SCHOLARURL_PREFIX + prevUrl, scholarResultsCallback(resolve, reject))
+              request(prevUrl, scholarResultsCallback(resolve, reject))
             })
             return p
           }
