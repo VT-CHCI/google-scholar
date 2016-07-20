@@ -147,14 +147,6 @@ let scholar = (function () {
     return p
   }
 
-  // function searchURL (url) {
-  //   let p = new Promise(function (resolve, reject) {
-  //     request(url, scholarResultsCallback(resolve, reject))
-  //   })
-
-  //   return p
-  // }
-
   return {
     search: search
   }

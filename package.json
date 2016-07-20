@@ -1,12 +1,20 @@
 {
   "name": "google-scholar",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "nodejs module for searching google scholar",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "repository": { 
+    "type" : "git",
+    "url" : "https://github.com/VT-CHCI/google-scholar.git"
+  },
+  "author": { 
+    "name" : "Michael Stewart",
+    "email" : "tgm@vt.edu",
+    "url" : "http://hcientist.com/"
+  },
   "license": "ISC",
   "dependencies": {
     "cheerio": "^0.20.0",
