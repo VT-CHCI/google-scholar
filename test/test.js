@@ -39,6 +39,18 @@ describe('Google Scholar Searcher', () => {
           })
           .catch(err => {
             done()
+            console.log('err')
+            console.log(err)
+          })
+    })
+    it('does SOMETHING for bad(?) query', done => {
+      scholar.search('&cites=2800153897409878354')
+          .then(resultsObj => {
+            done()
+            expect(resultsObj).to.exist
+          })
+          .catch(err => {
+            done()
             console.log(err)
           })
     })

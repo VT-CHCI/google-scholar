@@ -12,7 +12,9 @@ let scholar = (function () {
   const ET_AL_NAME = 'et al.'
   const CITATION_COUNT_PREFIX = 'Cited by '
   const RELATED_ARTICLES_PREFIX = 'Related articles'
-  const RESULT_COUNT_RE = /.+ ((\d+|\d{1,3}(,\d{3})*)(\.\d+)?) results/
+
+  // regex with thanks to http://stackoverflow.com/a/5917250/1449799
+  const RESULT_COUNT_RE = /\W*((\d+|\d{1,3}(,\d{3})*)(\.\d+)?) results/
 
   function scholarResultsCallback (resolve, reject) {
     return function (error, response, html) {
@@ -119,7 +121,12 @@ let scholar = (function () {
 
         let resultsCountString = $('#gs_ab_md').text()
         if (resultsCountString && resultsCountString.trim().length > 0) {
-          resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1].replace(/,/g, ''))
+          let matches = RESULT_COUNT_RE.exec(resultsCountString)
+          if (matches && matches.length > 0) {
+            resultCount = parseInt(matches[1].replace(/,/g, ''))
+          } else {
+            resultCount = processedResults.length
+          }
         } else {
           resultCount = processedResults.length
         }
