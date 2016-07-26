@@ -6,7 +6,7 @@ let scholar = require('../index.js')
 describe('Google Scholar Searcher', () => {
   describe('Google Scholar search', () => {
     it('gets a resultsObj for query, and the obj has the right properties',
-      (done) => {
+      done => {
         // should test with queries i expect to get different kinds of results,
         // as well as queries i expect to have no results
         scholar.search('askdgfk')
@@ -23,7 +23,24 @@ describe('Google Scholar Searcher', () => {
               expects(resultsObj.results.length).to.be.above(0)
             }
           })
+          .catch(err => {
+            done()
+            console.log('should have had a friggin catch block!')
+            console.log(err)
+          })
         expect(1).to.equal(1)
       })
+
+    it('does SOMETHING for long query', done => {
+      scholar.search('Children\'s use of the Yahooligans! Web search engine: I. Cognitive, physical, and affective behaviors on fact‐based search tasks')
+          .then(resultsObj => {
+            done()
+            expect(resultsObj).to.exist
+          })
+          .catch(err => {
+            done()
+            console.log(err)
+          })
+    })
   })
 })

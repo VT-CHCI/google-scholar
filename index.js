@@ -18,8 +18,9 @@ let scholar = (function () {
     return function (error, response, html) {
       if (error) {
         reject(error)
-      }
-      if (!error && response.statusCode === 200) {
+      } else if (response.statusCode !== 200) {
+        reject('expected statusCode 200 on http response, but got', response.statusCode)
+      } else {
         let $ = cheerio.load(html)
 
         let results = $('.gs_ri')
@@ -47,11 +48,6 @@ let scholar = (function () {
           let citedCount = 0
           let citedUrl = ''
           let relatedUrl = ''
-
-          let resultsCountString = $('#gs_ab_md').text()
-          if (resultsCountString) {
-            resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1].replace(/,/g, ''))
-          }
 
           if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
             citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
@@ -121,6 +117,13 @@ let scholar = (function () {
           })
         })
 
+        let resultsCountString = $('#gs_ab_md').text()
+        if (resultsCountString && resultsCountString.trim().length > 0) {
+          resultCount = parseInt(RESULT_COUNT_RE.exec(resultsCountString)[1].replace(/,/g, ''))
+        } else {
+          resultCount = processedResults.length
+        }
+
         resolve({
           results: processedResults,
           count: resultCount,
@@ -145,7 +148,7 @@ let scholar = (function () {
 
   function search (query) {
     let p = new Promise(function (resolve, reject) {
-      request(GOOGLE_SCHOLAR_URL + query, scholarResultsCallback(resolve, reject))
+      request(encodeURI(GOOGLE_SCHOLAR_URL + query), scholarResultsCallback(resolve, reject))
     })
     return p
   }
