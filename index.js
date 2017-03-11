@@ -13,6 +13,10 @@ let scholar = (function () {
   const CITATION_COUNT_PREFIX = 'Cited by '
   const RELATED_ARTICLES_PREFIX = 'Related articles'
 
+  const STATUS_CODE_FOR_RATE_LIMIT = 503
+  const STATUS_MESSAGE_FOR_RATE_LIMIT = 'Service Unavailable'
+  const STATUS_MESSAGE_BODY = 'This page appears when Google automatically detects requests coming from your computer network which appear to be in violation of the <a href="//www.google.com/policies/terms/">Terms of Service</a>. The block will expire shortly after those requests stop.'
+
   // regex with thanks to http://stackoverflow.com/a/5917250/1449799
   const RESULT_COUNT_RE = /\W*((\d+|\d{1,3}(,\d{3})*)(\.\d+)?) results/
 
@@ -21,7 +25,11 @@ let scholar = (function () {
       if (error) {
         reject(error)
       } else if (response.statusCode !== 200) {
-        reject('expected statusCode 200 on http response, but got', response.statusCode)
+        if (response.statusCode == STATUS_CODE_FOR_RATE_LIMIT && response.statusMessage == STATUS_MESSAGE_FOR_RATE_LIMIT && response.body.indexOf(STATUS_MESSAGE_BODY) > -1) {
+          reject('you are being rate-limited by google. you have made too many requests too quickly. see: https://support.google.com/websearch/answer/86640')
+        } else {
+          reject('expected statusCode 200 on http response, but got: ' + response.statusCode)
+        }
       } else {
         let $ = cheerio.load(html)
 
