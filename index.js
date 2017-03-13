@@ -33,7 +33,7 @@ let scholar = (function () {
       } else {
         let $ = cheerio.load(html)
 
-        let results = $('.gs_ri')
+        let results = $('.gs_r')
         let resultCount = 0
         let nextUrl = ''
         let prevUrl = ''
@@ -46,18 +46,19 @@ let scholar = (function () {
 
         let processedResults = []
         results.each((i, r) => {
-          $(r).find('h3 span').remove()
-          let title = $(r).find('h3').text().trim()
-          let url = $(r).find('h3 a').attr('href')
-          let authorNamesHTMLString = $(r).find('.gs_a').html()
+          $(r).find('.gs_ri h3 span').remove()
+          let title = $(r).find('.gs_ri h3').text().trim()
+          let url = $(r).find('.gs_ri h3 a').attr('href')
+          let authorNamesHTMLString = $(r).find('.gs_ri .gs_a').html()
           let etAl = false
           let etAlBegin = false
           let authors = []
-          let description = $(r).find('.gs_rs').text()
+          let description = $(r).find('.gs_ri .gs_rs').text()
           let footerLinks = $(r).find('.gs_ri .gs_fl a')
           let citedCount = 0
           let citedUrl = ''
           let relatedUrl = ''
+          let pdfUrl =  $($(r).find('.gs_ggsd a')[0]).attr('href')
 
           if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
             citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
@@ -123,7 +124,8 @@ let scholar = (function () {
             description: description,
             citedCount: citedCount,
             citedUrl: citedUrl,
-            relatedUrl: relatedUrl
+            relatedUrl: relatedUrl,
+            pdf: pdfUrl
           })
         })
 
