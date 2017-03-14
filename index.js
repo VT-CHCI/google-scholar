@@ -12,7 +12,7 @@ let scholar = (function () {
 
   // 1 per 200 ms ~= 5/s per  
   // https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
-  let limiter = new RateLimiter(1, 500)
+  let limiter = new RateLimiter(1, 201)
 
   const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?q='
   const GOOGLE_SCHOLAR_URL_PREFIX = 'https://scholar.google.com'
