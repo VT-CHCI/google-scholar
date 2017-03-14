@@ -57,7 +57,7 @@ describe('Google Scholar Searcher', () => {
     it('does rate limits correctly', function(done) {
       var queries = []
       var queryCount = 20
-      this.timeout(10000)
+      this.timeout(60000)
       for (var i=0; i<queryCount; i++) {
         queries.push(i)
       }
