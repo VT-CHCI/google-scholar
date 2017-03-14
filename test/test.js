@@ -24,9 +24,9 @@ describe('Google Scholar Searcher', () => {
             }
           })
           .catch(err => {
-            done()
-            console.log('should have had a friggin catch block!')
-            console.log(err)
+            done(err)
+            // console.log('should have had a friggin catch block!')
+            // console.log(err)
           })
         expect(1).to.equal(1)
       })
@@ -38,9 +38,9 @@ describe('Google Scholar Searcher', () => {
             expect(resultsObj).to.exist
           })
           .catch(err => {
-            done()
-            console.log('err')
-            console.log(err)
+            done(err)
+            // console.log('err')
+            // console.log(err)
           })
     })
     it('does SOMETHING for bad(?) query', done => {
@@ -50,9 +50,29 @@ describe('Google Scholar Searcher', () => {
             expect(resultsObj).to.exist
           })
           .catch(err => {
-            done()
-            console.log(err)
+            done(err)
+            // console.log(err)
           })
+    })
+    it('does rate limits correctly', function(done) {
+      var queries = []
+      var queryCount = 20
+      this.timeout(10000)
+      for (var i=0; i<queryCount; i++) {
+        queries.push(i)
+      }
+      Promise.all(queries.map(query => {
+        return scholar.search(query)
+      }))
+        .then(resultsObjList => {
+          console.log(resultsObjList)
+          expect(resultsObjList).to.have.lengthOf(queryCount)
+          done()
+        })
+        .catch(err => {
+          done(err)
+          // console.log(err)
+        })
     })
   })
 })
