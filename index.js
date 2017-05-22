@@ -5,7 +5,7 @@ let scholar = (function () {
   let cheerio = require('cheerio')
   let striptags = require('striptags')
 
-  const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?q='
+  const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?hl=en&q='
   const GOOGLE_SCHOLAR_URL_PREFIX = 'https://scholar.google.com'
 
   const ELLIPSIS_HTML_ENTITY = '&#x2026;'
