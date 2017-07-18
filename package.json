@@ -18,9 +18,9 @@
   "license": "ISC",
   "dependencies": {
     "cheerio": "^0.20.0",
-    "limiter": "^1.1.0",
     "request": "^2.73.0",
-    "striptags": "^2.1.1"
+    "striptags": "^2.1.1",
+    "throttled-queue": "^1.0.4"
   },
   "devDependencies": {
     "chai": "^3.5.0",
