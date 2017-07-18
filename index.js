@@ -4,6 +4,14 @@ let scholar = (function () {
   let request = require('request')
   let cheerio = require('cheerio')
   let striptags = require('striptags')
+  const throttledQueue = require('throttled-queue')
+
+  // 1 per 200 ms ~= 5/s per
+  // https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
+
+  const perSecThrottle = throttledQueue(5, 1000)
+  const perMinThrottle = throttledQueue(200, 60 * 1000)
+  const RESULTS_PER_PAGE = 10
 
   const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?q='
   const GOOGLE_SCHOLAR_URL_PREFIX = 'https://scholar.google.com'
@@ -25,10 +33,10 @@ let scholar = (function () {
       if (error) {
         reject(error)
       } else if (response.statusCode !== 200) {
-        if (response.statusCode == STATUS_CODE_FOR_RATE_LIMIT && response.statusMessage == STATUS_MESSAGE_FOR_RATE_LIMIT && response.body.indexOf(STATUS_MESSAGE_BODY) > -1) {
-          reject('you are being rate-limited by google. you have made too many requests too quickly. see: https://support.google.com/websearch/answer/86640')
+        if (response.statusCode === STATUS_CODE_FOR_RATE_LIMIT && response.statusMessage === STATUS_MESSAGE_FOR_RATE_LIMIT && response.body.indexOf(STATUS_MESSAGE_BODY) > -1) {
+          reject(new Error('you are being rate-limited by google. you have made too many requests too quickly. see: https://support.google.com/websearch/answer/86640'))
         } else {
-          reject('expected statusCode 200 on http response, but got: ' + response.statusCode)
+          reject(new Error('expected statusCode 200 on http response, but got: ' + response.statusCode))
         }
       } else {
         let $ = cheerio.load(html)
@@ -58,7 +66,7 @@ let scholar = (function () {
           let citedCount = 0
           let citedUrl = ''
           let relatedUrl = ''
-          let pdfUrl =  $($(r).find('.gs_ggsd a')[0]).attr('href')
+          let pdfUrl = $($(r).find('.gs_ggsd a')[0]).attr('href')
 
           if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
             citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
@@ -148,13 +156,29 @@ let scholar = (function () {
           prevUrl: prevUrl,
           next: function () {
             let p = new Promise(function (resolve, reject) {
-              request(nextUrl, scholarResultsCallback(resolve, reject))
+              perMinThrottle(() => {
+                perSecThrottle(() => {
+                  var requestOptions = {
+                    jar: true
+                  }
+                  requestOptions.url = nextUrl
+                  request(requestOptions, scholarResultsCallback(resolve, reject))
+                })
+              })
             })
             return p
           },
           previous: function () {
             let p = new Promise(function (resolve, reject) {
-              request(prevUrl, scholarResultsCallback(resolve, reject))
+              perMinThrottle(() => {
+                perSecThrottle(() => {
+                  var requestOptions = {
+                    jar: true
+                  }
+                  requestOptions.url = prevUrl
+                  request(requestOptions, scholarResultsCallback(resolve, reject))
+                })
+              })
             })
             return p
           }
@@ -165,13 +189,53 @@ let scholar = (function () {
 
   function search (query) {
     let p = new Promise(function (resolve, reject) {
-      request(encodeURI(GOOGLE_SCHOLAR_URL + query), scholarResultsCallback(resolve, reject))
+      perMinThrottle(() => {
+        perSecThrottle(() => {
+          var requestOptions = {
+            jar: true
+          }
+          requestOptions.url = encodeURI(GOOGLE_SCHOLAR_URL + query)
+          request(requestOptions, scholarResultsCallback(resolve, reject))
+        })
+      })
     })
     return p
   }
 
+  function all (query) {
+    return search(query)
+      .then(resultsObj => {
+        //  eg n=111 but i have 10 already so 101 remain,
+        let remainingResultsCount = resultsObj.count - resultsObj.results.length
+        if (remainingResultsCount > 0) {
+          //  pr = 10
+          let pagesRemaining = remainingResultsCount / RESULTS_PER_PAGE
+          let pageNumbers = []
+          for (var i = 1; i <= pagesRemaining + 1; i++) {
+            pageNumbers.push(i)
+          }
+          return Promise.all(pageNumbers.map(i => {
+            return search(query + '&start=' + i * RESULTS_PER_PAGE)
+              .then(laterPagesResultsObj => {
+                return laterPagesResultsObj.results
+              })
+          }))
+            .then(remainingResultsArr => {
+              let allResults = resultsObj.results.concat(remainingResultsArr.reduce((a, b) => a.concat(b)))
+              resultsObj.results = allResults
+              resultsObj.nextUrl = null
+              resultsObj.next = null
+              resultsObj.prevUrl = null
+              resultsObj.prev = null
+              return resultsObj
+            })
+        }
+      })
+  }
+
   return {
-    search: search
+    search: search,
+    all: all
   }
 })()
 
