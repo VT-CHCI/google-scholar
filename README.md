@@ -20,6 +20,21 @@ scholar.search('chairmouse')
   })
 ```
 
+## new in v1.5.0: `scholar.all` ##
+
+If you would prefer to get all results at once rather than paginated, you can use scholar.all rather than scholar.search to retrieve all of the results. as in: 
+
+```
+'use strict'
+
+let scholar = require('google-scholar')
+
+scholar.all('chairmouse')
+  .then(resultsObj => {
+    console.log(resultsObj) // this will have all ~112 results
+  })
+```
+
 ## resultsObj ##
 
 the results obj has 4 fields:
