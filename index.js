@@ -4,7 +4,7 @@ let scholar = (function () {
   let request = require('request')
   let cheerio = require('cheerio')
   let striptags = require('striptags')
-  const throttledQueue = require('throttled-queue')
+  const throttledQueue = require('./throttled-queue')
 
   // 1 per 200 ms ~= 5/s per
   // https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
@@ -21,6 +21,9 @@ let scholar = (function () {
   const CITATION_COUNT_PREFIX = 'Cited by '
   const RELATED_ARTICLES_PREFIX = 'Related articles'
 
+  const CITED_BY_INDEX = 2 // index into ".gs_ri .gs_fl a" selection
+  const RELATED_ARTICLES_INDEX = 3 // index into ".gs_ri .gs_fl a" selection
+
   const STATUS_CODE_FOR_RATE_LIMIT = 503
   const STATUS_MESSAGE_FOR_RATE_LIMIT = 'Service Unavailable'
   const STATUS_MESSAGE_BODY = 'This page appears when Google automatically detects requests coming from your computer network which appear to be in violation of the <a href="//www.google.com/policies/terms/">Terms of Service</a>. The block will expire shortly after those requests stop.'
@@ -30,6 +33,7 @@ let scholar = (function () {
 
   function scholarResultsCallback (resolve, reject) {
     return function (error, response, html) {
+      console.log("Response code", response.statusCode)
       if (error) {
         reject(error)
       } else if (response.statusCode !== 200) {
@@ -68,32 +72,35 @@ let scholar = (function () {
           let relatedUrl = ''
           let pdfUrl = $($(r).find('.gs_ggsd a')[0]).attr('href')
 
-          if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
-            citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
+          let citedByElement = $(footerLinks[CITED_BY_INDEX])
+          let relatedElement = $(footerLinks[RELATED_ARTICLES_INDEX])
+
+          if (citedByElement.text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
+            citedCount = citedByElement.text().substr(CITATION_COUNT_PREFIX.length)
           }
-          if ($(footerLinks[0]).attr &&
-            $(footerLinks[0]).attr('href') &&
-            $(footerLinks[0]).attr('href').length > 0) {
-            citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[0]).attr('href')
+          if (citedByElement.attr &&
+            citedByElement.attr('href') &&
+            citedByElement.attr('href').length > 0) {
+            citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + citedByElement.attr('href')
           }
           if (footerLinks &&
             footerLinks.length &&
             footerLinks.length > 0) {
-            if ($(footerLinks[0]).text &&
-              $(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
-              citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
+            if (citedByElement.text &&
+              citedByElement.text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
+              citedCount = citedByElement.text().substr(CITATION_COUNT_PREFIX.length)
             }
 
-            if ($(footerLinks[1]).text &&
-              $(footerLinks[1]).text().indexOf(RELATED_ARTICLES_PREFIX) >= 0 &&
-              $(footerLinks[1]).attr &&
-              $(footerLinks[1]).attr('href') &&
-              $(footerLinks[1]).attr('href').length > 0) {
-              relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[1]).attr('href')
+            if (relatedElement.text &&
+              relatedElement.text().indexOf(RELATED_ARTICLES_PREFIX) >= 0 &&
+              relatedElement.attr &&
+              relatedElement.attr('href') &&
+              relatedElement.attr('href').length > 0) {
+              relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + relatedElement.attr('href')
             }
           }
           if (authorNamesHTMLString) {
-            let cleanString = authorNamesHTMLString.substr(0, authorNamesHTMLString.indexOf(' - '))
+            let cleanString = authorNamesHTMLString.substr(0, authorNamesHTMLString.indexOf('- '))
             if (cleanString.substr(cleanString.length - ELLIPSIS_HTML_ENTITY.length) === ELLIPSIS_HTML_ENTITY) {
               etAl = true
               cleanString = cleanString.substr(0, cleanString.length - ELLIPSIS_HTML_ENTITY.length)
@@ -156,31 +163,27 @@ let scholar = (function () {
           prevUrl: prevUrl,
           next: function () {
             let p = new Promise(function (resolve, reject) {
-              perMinThrottle(() => {
-                perSecThrottle(() => {
-                  var requestOptions = {
-                    jar: true
-                  }
-                  requestOptions.url = nextUrl
-                  request(requestOptions, scholarResultsCallback(resolve, reject))
-                })
+              perSecThrottle(() => {
+                var requestOptions = {
+                  jar: true
+                }
+                requestOptions.url = nextUrl
+                request(requestOptions, scholarResultsCallback(resolve, reject))
               })
             })
             return p
           },
           previous: function () {
             let p = new Promise(function (resolve, reject) {
-              perMinThrottle(() => {
-                perSecThrottle(() => {
-                  var requestOptions = {
-                    jar: true
-                  }
-                  requestOptions.url = prevUrl
-                  request(requestOptions, scholarResultsCallback(resolve, reject))
-                })
+              perSecThrottle(() => {
+                var requestOptions = {
+                  jar: true
+                }
+                requestOptions.url = prevUrl
+                request(requestOptions, scholarResultsCallback(resolve, reject))
               })
             })
-            return p
+          return p
           }
         })
       }
@@ -189,14 +192,14 @@ let scholar = (function () {
 
   function search (query) {
     let p = new Promise(function (resolve, reject) {
-      perMinThrottle(() => {
-        perSecThrottle(() => {
-          var requestOptions = {
-            jar: true
-          }
-          requestOptions.url = encodeURI(GOOGLE_SCHOLAR_URL + query)
-          request(requestOptions, scholarResultsCallback(resolve, reject))
-        })
+      console.log("Queuing search for", query)
+      perSecThrottle(() => {
+        var requestOptions = {
+          jar: true
+        }
+        requestOptions.url = encodeURI(GOOGLE_SCHOLAR_URL + query)
+        console.log("Time to request", requestOptions.url);
+        request(requestOptions, scholarResultsCallback(resolve, reject))
       })
     })
     return p
