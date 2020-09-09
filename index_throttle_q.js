@@ -1,6 +1,10 @@
-'use strict'
 
-let scholar = (function () {
+// Comments by sarang87 - Works perfectly with changed classes for Cited count and Cited by for 
+// scholarResultsCallbackfunction using throttled queue with much slower performance for returning results
+
+  'use strict'
+
+  let scholar = (function () {
   let request = require('request')
   let cheerio = require('cheerio')
   let striptags = require('striptags')
@@ -41,7 +45,7 @@ let scholar = (function () {
       } else {
         let $ = cheerio.load(html)
 
-        let results = $('.gs_r')
+        let results = $('.gs_ri')
         let resultCount = 0
         let nextUrl = ''
         let prevUrl = ''
@@ -54,43 +58,59 @@ let scholar = (function () {
 
         let processedResults = []
         results.each((i, r) => {
-          $(r).find('.gs_ri h3 span').remove()
-          let title = $(r).find('.gs_ri h3').text().trim()
-          let url = $(r).find('.gs_ri h3 a').attr('href')
-          let authorNamesHTMLString = $(r).find('.gs_ri .gs_a').html()
+          $(r).find('h3 span').remove()
+          let title = $(r).find('h3').text().trim()
+          let url = $(r).find('h3 a').attr('href')
+          let authorNamesHTMLString = $(r).find('.gs_a').html()
           let etAl = false
           let etAlBegin = false
           let authors = []
-          let description = $(r).find('.gs_ri .gs_rs').text()
-          let footerLinks = $(r).find('.gs_ri .gs_fl a')
+          let description = $(r).find('.gs_rs').text()
+	        console.log("\n" + description + "\n")
+          let footerLinks = $(r).find('.gs_ri .gs_fl')
           let citedCount = 0
           let citedUrl = ''
           let relatedUrl = ''
-          let pdfUrl = $($(r).find('.gs_ggsd a')[0]).attr('href')
+	  
+          // modified code path to extract scholar url from foorerLinks[0]
+          //console.log($(footerLinks[0]).html() +"\t\t***")
+                let alist = []	
+          $(footerLinks[0]).find('a').each(function (index, element) {
+              alist.push($(element).attr('href'));
+          });
+          //console.log(alist[3] +"\t\txxxx\n\n")	  
+          let scholar_url = alist[2]
+          let related_url = alist[3]
 
+	
           if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
+	    
             citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
           }
-          if ($(footerLinks[0]).attr &&
-            $(footerLinks[0]).attr('href') &&
-            $(footerLinks[0]).attr('href').length > 0) {
-            citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[0]).attr('href')
-          }
+          //  f ($(footerLinks[2]).attr &&
+          //  $(footerLinks[2]).attr('href') &&
+          //  $(footerLinks[2]).attr('href').length > 0) {
+          //  console.log( $(footerLinks[2]).attr('href'))
+          //  citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[2]).attr('href')
+          //}
+          citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + scholar_url
+	        relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + related_url
           if (footerLinks &&
             footerLinks.length &&
             footerLinks.length > 0) {
-            if ($(footerLinks[0]).text &&
+          if ($(footerLinks[0]).text &&
               $(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
-              citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
+	            //console.log("Length:" + $(footerLinks[0]).text().slice(CITATION_COUNT_PREFIX.length+2,CITATION_COUNT_PREFIX.length+5))
+              citedCount = $(footerLinks[0]).text().split(/(\s+)/)[6]
             }
 
-            if ($(footerLinks[1]).text &&
-              $(footerLinks[1]).text().indexOf(RELATED_ARTICLES_PREFIX) >= 0 &&
-              $(footerLinks[1]).attr &&
-              $(footerLinks[1]).attr('href') &&
-              $(footerLinks[1]).attr('href').length > 0) {
-              relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[1]).attr('href')
-            }
+            //if ($(footerLinks[1]).text &&
+            //  $(footerLinks[1]).text().indexOf(RELATED_ARTICLES_PREFIX) >= 0 &&
+            //  $(footerLinks[1]).attr &&
+            //  $(footerLinks[1]).attr('href') &&
+            //  $(footerLinks[1]).attr('href').length > 0) {
+            //  relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[1]).attr('href')
+           // }
           }
           if (authorNamesHTMLString) {
             let cleanString = authorNamesHTMLString.substr(0, authorNamesHTMLString.indexOf(' - '))
@@ -132,8 +152,7 @@ let scholar = (function () {
             description: description,
             citedCount: citedCount,
             citedUrl: citedUrl,
-            relatedUrl: relatedUrl,
-            pdf: pdfUrl
+            relatedUrl: relatedUrl
           })
         })
 
