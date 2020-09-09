@@ -1,17 +1,33 @@
-'use strict'
 
-let scholar = (function () {
+// Comments by sarang87 - Works perfectly with changed classes for Cited count and Cited by for 
+// scholarResultsCallbackfunction using throttled queue with much slower performance for returning results
+
+  'use strict'
+
+  let scholar = (function () {
   let request = require('request')
   let cheerio = require('cheerio')
   let striptags = require('striptags')
+  const throttledQueue = require('throttled-queue')
 
-  const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?q='
+  // 1 per 200 ms ~= 5/s per
+  // https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
+
+  const perSecThrottle = throttledQueue(5, 1000)
+  const perMinThrottle = throttledQueue(200, 60 * 1000)
+  const RESULTS_PER_PAGE = 10
+
+  const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?hl=en&q='
   const GOOGLE_SCHOLAR_URL_PREFIX = 'https://scholar.google.com'
 
   const ELLIPSIS_HTML_ENTITY = '&#x2026;'
   const ET_AL_NAME = 'et al.'
   const CITATION_COUNT_PREFIX = 'Cited by '
   const RELATED_ARTICLES_PREFIX = 'Related articles'
+
+  const STATUS_CODE_FOR_RATE_LIMIT = 503
+  const STATUS_MESSAGE_FOR_RATE_LIMIT = 'Service Unavailable'
+  const STATUS_MESSAGE_BODY = 'This page appears when Google automatically detects requests coming from your computer network which appear to be in violation of the <a href="//www.google.com/policies/terms/">Terms of Service</a>. The block will expire shortly after those requests stop.'
 
   // regex with thanks to http://stackoverflow.com/a/5917250/1449799
   const RESULT_COUNT_RE = /\W*((\d+|\d{1,3}(,\d{3})*)(\.\d+)?) results/
@@ -21,7 +37,11 @@ let scholar = (function () {
       if (error) {
         reject(error)
       } else if (response.statusCode !== 200) {
-        reject('expected statusCode 200 on http response, but got', response.statusCode)
+        if (response.statusCode === STATUS_CODE_FOR_RATE_LIMIT && response.statusMessage === STATUS_MESSAGE_FOR_RATE_LIMIT && response.body.indexOf(STATUS_MESSAGE_BODY) > -1) {
+          reject(new Error('you are being rate-limited by google. you have made too many requests too quickly. see: https://support.google.com/websearch/answer/86640'))
+        } else {
+          reject(new Error('expected statusCode 200 on http response, but got: ' + response.statusCode))
+        }
       } else {
         let $ = cheerio.load(html)
 
@@ -46,42 +66,42 @@ let scholar = (function () {
           let etAlBegin = false
           let authors = []
           let description = $(r).find('.gs_rs').text()
-	  console.log("\n" + description + "\n")
+	        console.log("\n" + description + "\n")
           let footerLinks = $(r).find('.gs_ri .gs_fl')
           let citedCount = 0
           let citedUrl = ''
           let relatedUrl = ''
 	  
-	  // modified code path to extract scholar url from foorerLinks[0]
-	  //console.log($(footerLinks[0]).html() +"\t\t***")
-          let alist = []	
-	  $(footerLinks[0]).find('a').each(function (index, element) {
-  			alist.push($(element).attr('href'));
-		});
-	  //console.log(alist[3] +"\t\txxxx\n\n")	  
-	  let scholar_url = alist[2]
-	  let related_url = alist[3]
+          // modified code path to extract scholar url from foorerLinks[0]
+          //console.log($(footerLinks[0]).html() +"\t\t***")
+                let alist = []	
+          $(footerLinks[0]).find('a').each(function (index, element) {
+              alist.push($(element).attr('href'));
+          });
+          //console.log(alist[3] +"\t\txxxx\n\n")	  
+          let scholar_url = alist[2]
+          let related_url = alist[3]
 
 	
           if ($(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
 	    
             citedCount = $(footerLinks[0]).text().substr(CITATION_COUNT_PREFIX.length)
           }
-          //if ($(footerLinks[2]).attr &&
+          //  f ($(footerLinks[2]).attr &&
           //  $(footerLinks[2]).attr('href') &&
           //  $(footerLinks[2]).attr('href').length > 0) {
-	  //  console.log( $(footerLinks[2]).attr('href'))
+          //  console.log( $(footerLinks[2]).attr('href'))
           //  citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + $(footerLinks[2]).attr('href')
           //}
           citedUrl = GOOGLE_SCHOLAR_URL_PREFIX + scholar_url
-	  relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + related_url
+	        relatedUrl = GOOGLE_SCHOLAR_URL_PREFIX + related_url
           if (footerLinks &&
             footerLinks.length &&
             footerLinks.length > 0) {
-            if ($(footerLinks[0]).text &&
+          if ($(footerLinks[0]).text &&
               $(footerLinks[0]).text().indexOf(CITATION_COUNT_PREFIX) >= 0) {
-	      //console.log("Length:" + $(footerLinks[0]).text().slice(CITATION_COUNT_PREFIX.length+2,CITATION_COUNT_PREFIX.length+5))
-              citedCount = $(footerLinks[0]).text().slice(CITATION_COUNT_PREFIX.length+2,CITATION_COUNT_PREFIX.length+5)
+	            //console.log("Length:" + $(footerLinks[0]).text().slice(CITATION_COUNT_PREFIX.length+2,CITATION_COUNT_PREFIX.length+5))
+              citedCount = $(footerLinks[0]).text().split(/(\s+)/)[6]
             }
 
             //if ($(footerLinks[1]).text &&
@@ -155,13 +175,29 @@ let scholar = (function () {
           prevUrl: prevUrl,
           next: function () {
             let p = new Promise(function (resolve, reject) {
-              request(nextUrl, scholarResultsCallback(resolve, reject))
+              perMinThrottle(() => {
+                perSecThrottle(() => {
+                  var requestOptions = {
+                    jar: true
+                  }
+                  requestOptions.url = nextUrl
+                  request(requestOptions, scholarResultsCallback(resolve, reject))
+                })
+              })
             })
             return p
           },
           previous: function () {
             let p = new Promise(function (resolve, reject) {
-              request(prevUrl, scholarResultsCallback(resolve, reject))
+              perMinThrottle(() => {
+                perSecThrottle(() => {
+                  var requestOptions = {
+                    jar: true
+                  }
+                  requestOptions.url = prevUrl
+                  request(requestOptions, scholarResultsCallback(resolve, reject))
+                })
+              })
             })
             return p
           }
@@ -172,13 +208,53 @@ let scholar = (function () {
 
   function search (query) {
     let p = new Promise(function (resolve, reject) {
-      request(encodeURI(GOOGLE_SCHOLAR_URL + query), scholarResultsCallback(resolve, reject))
+      perMinThrottle(() => {
+        perSecThrottle(() => {
+          var requestOptions = {
+            jar: true
+          }
+          requestOptions.url = encodeURI(GOOGLE_SCHOLAR_URL + query)
+          request(requestOptions, scholarResultsCallback(resolve, reject))
+        })
+      })
     })
     return p
   }
 
+  function all (query) {
+    return search(query)
+      .then(resultsObj => {
+        //  eg n=111 but i have 10 already so 101 remain,
+        let remainingResultsCount = resultsObj.count - resultsObj.results.length
+        if (remainingResultsCount > 0) {
+          //  pr = 10
+          let pagesRemaining = remainingResultsCount / RESULTS_PER_PAGE
+          let pageNumbers = []
+          for (var i = 1; i <= pagesRemaining + 1; i++) {
+            pageNumbers.push(i)
+          }
+          return Promise.all(pageNumbers.map(i => {
+            return search(query + '&start=' + i * RESULTS_PER_PAGE)
+              .then(laterPagesResultsObj => {
+                return laterPagesResultsObj.results
+              })
+          }))
+            .then(remainingResultsArr => {
+              let allResults = resultsObj.results.concat(remainingResultsArr.reduce((a, b) => a.concat(b)))
+              resultsObj.results = allResults
+              resultsObj.nextUrl = null
+              resultsObj.next = null
+              resultsObj.prevUrl = null
+              resultsObj.prev = null
+              return resultsObj
+            })
+        }
+      })
+  }
+
   return {
-    search: search
+    search: search,
+    all: all
   }
 })()
 
